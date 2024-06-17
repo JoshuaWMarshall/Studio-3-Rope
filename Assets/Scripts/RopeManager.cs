@@ -9,7 +9,6 @@ public class RopeState
 {
     public Vector2 position;
     public Vector2 previousPosition;
-    public GameObject gameObject;
 
     public RopeState(Vector2 position)
     {
@@ -48,11 +47,11 @@ public class Node
 }
 public class RopeManager : MonoBehaviour
 {
- private List<Node> nodes = new List<Node>();
-    private List<Constraint> constraints = new List<Constraint>();
+    [SerializeField] private List<Node> nodes = new List<Node>();
+    public List<Constraint> constraints = new List<Constraint>();
     public GameObject nodeSomehting;
     public List<GameObject> nodeVis = new List<GameObject>();
-    
+    public float distance;
     public int AddNode(Vector2 position, float mass, bool isFixed)
     {
         Node newNode = new Node(position, mass, isFixed);
@@ -66,10 +65,23 @@ public class RopeManager : MonoBehaviour
 
     private void Start()
     {
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 20; i++)
         {
-            Vector2 temp = new Vector2(0, 0 + i);
-            AddNode(temp, 1, true);
+            if (i == 0 || i == 19)
+            {
+                Vector2 temp = new Vector2(0 + i , 0 );
+                AddNode(temp, 1, true);
+            }
+            else
+            {
+                Vector2 temp = new Vector2(0 + i , 0 );
+                AddNode(temp, 1, false);
+            }
+
+            if (i != 0)
+            {
+                AddConstraint(i-1, i);
+            }
         }
     }
 
@@ -81,7 +93,6 @@ public class RopeManager : MonoBehaviour
 
     public void AddConstraint(int node1, int node2)
     {
-        float distance = Vector2.Distance(nodes[node1].state.position, nodes[node2].state.position);
         AddConstraint(node1, node2, distance);
     }
 
@@ -94,9 +105,12 @@ public class RopeManager : MonoBehaviour
             {
                 // Apply gravity
                 node.state.AddForce(new Vector2(0, -9.81f) * node.mass);
-                // Integrate
-                node.state.Integrate();
             }
+            else
+            {
+                node.state.position = node.state.previousPosition;
+            }
+            node.state.Integrate();
         }
 
         // Satisfy constraints
@@ -113,23 +127,23 @@ public class RopeManager : MonoBehaviour
         // Apply ground check
         foreach (var node in nodes)
         {
-            if (node.state.position.y < 0)
+            if (node.state.position.y < -4.5f)
             {
-                node.state.position.y = 0;
+                node.state.position.y = -4.4f;
             }
         }
-
-        // Update game objects
-        foreach (var node in nodes)
-        {
-            // Assuming each node has a corresponding GameObject
-            if (node.state.gameObject != null)
-            {
-                node.state.gameObject.transform.position = node.state.position;
-            }
-        }
+        
+        UpdateVisuals();
     }
 
+    void UpdateVisuals()
+    {
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            Node node = nodes[i];
+            nodeVis[i].transform.position = new Vector3(node.state.position.x, node.state.position.y);
+        }
+    }
     private void ConstraintFixedDist(ref Vector2 pos1, ref Vector2 pos2, float desiredDistance, float compensate1,
         float compensate2)
     {
