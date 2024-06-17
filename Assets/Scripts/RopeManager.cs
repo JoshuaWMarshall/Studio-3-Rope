@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 
 [Serializable]
@@ -51,7 +52,6 @@ public class RopeManager : MonoBehaviour
     public List<Constraint> constraints = new List<Constraint>();
     public GameObject nodeSomehting;
     public List<GameObject> nodeVis = new List<GameObject>();
-    public float distance;
     public int AddNode(Vector2 position, float mass, bool isFixed)
     {
         Node newNode = new Node(position, mass, isFixed);
@@ -69,12 +69,16 @@ public class RopeManager : MonoBehaviour
         {
             if (i == 0 || i == 19)
             {
-                Vector2 temp = new Vector2(0 + i , 0 );
+                float random = Random.Range(0, 100);
+                random = random / 1000;
+                Vector2 temp = new Vector2(random + i , random * i );
                 AddNode(temp, 1, true);
             }
             else
             {
-                Vector2 temp = new Vector2(0 + i , 0 );
+                float random = Random.Range(0, 100);
+                random = random / 1000;
+                Vector2 temp = new Vector2(random + i , random * i );
                 AddNode(temp, 1, false);
             }
 
@@ -93,6 +97,7 @@ public class RopeManager : MonoBehaviour
 
     public void AddConstraint(int node1, int node2)
     {
+        float distance = Vector2.Distance(nodes[node1].state.position, nodes[node2].state.position);
         AddConstraint(node1, node2, distance);
     }
 
@@ -104,7 +109,7 @@ public class RopeManager : MonoBehaviour
             if (!node.isFixed)
             {
                 // Apply gravity
-                node.state.AddForce(new Vector2(0, -9.81f) * node.mass);
+                node.state.AddForce(Vector2.down * 9.81f * node.mass);
             }
             else
             {
@@ -127,9 +132,9 @@ public class RopeManager : MonoBehaviour
         // Apply ground check
         foreach (var node in nodes)
         {
-            if (node.state.position.y < -4.5f)
+            if (node.state.position.y < -3.5f)
             {
-                node.state.position.y = -4.4f;
+                node.state.position.y = -3.4f;
             }
         }
         
