@@ -69,9 +69,9 @@ public class RopeManager : MonoBehaviour
         {
             if (i == 0 || i == 19)
             {
-                float random = Random.Range(0, 100);
+                float random = Random.Range(1, 100);
                 random = random / 1000;
-                Vector2 temp = new Vector2(random + i , random * i );
+                Vector2 temp = new Vector2(random + i , 0 );
                 AddNode(temp, 1, true);
             }
             else
@@ -118,8 +118,17 @@ public class RopeManager : MonoBehaviour
             node.state.Integrate();
         }
 
+        // Apply ground check
+        foreach (var node in nodes)
+        {
+            if (node.state.position.y < -3.5f)
+            {
+                node.state.position.y = -3.5f;
+            }
+        }
+        
         // Satisfy constraints
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 20; i++)
         {
             foreach (var constraint in constraints)
             {
@@ -129,15 +138,7 @@ public class RopeManager : MonoBehaviour
             }
         }
 
-        // Apply ground check
-        foreach (var node in nodes)
-        {
-            if (node.state.position.y < -3.5f)
-            {
-                node.state.position.y = -3.4f;
-            }
-        }
-        
+     
         UpdateVisuals();
     }
 
@@ -162,7 +163,7 @@ public class RopeManager : MonoBehaviour
     }
 }
 
-public class Constraint
+[Serializable]public class Constraint
 {
     public int node1;
     public int node2;
