@@ -20,7 +20,7 @@ public class RopeState
     public void AddForce(Vector2 force)
     {
         Vector2 acceleration = force; // Assuming mass is 1 for simplicity
-        Vector2 newPosition = position + (position - previousPosition) + acceleration * Time.fixedDeltaTime * Time.fixedDeltaTime;
+        Vector2 newPosition = position + (position - previousPosition)*0.99f + acceleration * Time.fixedDeltaTime * Time.fixedDeltaTime;
         previousPosition = position;
         position = newPosition;
     }
@@ -52,6 +52,7 @@ public class RopeManager : MonoBehaviour
     public List<Constraint> constraints = new List<Constraint>();
     public GameObject nodeSomehting;
     public List<GameObject> nodeVis = new List<GameObject>();
+    private LineRenderer line;
     public int AddNode(Vector2 position, float mass, bool isFixed)
     {
         Node newNode = new Node(position, mass, isFixed);
@@ -60,11 +61,17 @@ public class RopeManager : MonoBehaviour
         visual.transform.position = position;
         SpriteRenderer rend = visual.GetComponent<SpriteRenderer>();
         nodeVis.Add(visual);
+        line.positionCount = nodes.Count;
         return nodes.Count - 1;
     }
 
     private void Start()
     {
+        line = gameObject.GetComponent<LineRenderer>();
+        line.positionCount = nodes.Count;
+        line.startWidth = 0.1f;
+        line.endWidth = 0.1f;
+        line.material = new Material(Shader.Find("Sprites/Default"));
         for (int i = 0; i < 20; i++)
         {
             if (i == 0 || i == 19)
@@ -73,6 +80,7 @@ public class RopeManager : MonoBehaviour
                 random = random / 1000;
                 Vector2 temp = new Vector2(random + i , 0 );
                 AddNode(temp, 1, true);
+                line.SetPosition(i,temp);
             }
             else
             {
@@ -80,6 +88,7 @@ public class RopeManager : MonoBehaviour
                 random = random / 1000;
                 Vector2 temp = new Vector2(random + i , random * i );
                 AddNode(temp, 1, false);
+                line.SetPosition(i,temp);
             }
 
             if (i != 0)
@@ -148,6 +157,7 @@ public class RopeManager : MonoBehaviour
         {
             Node node = nodes[i];
             nodeVis[i].transform.position = new Vector3(node.state.position.x, node.state.position.y);
+            line.SetPosition(i,node.state.position);
         }
     }
     private void ConstraintFixedDist(ref Vector2 pos1, ref Vector2 pos2, float desiredDistance, float compensate1,
