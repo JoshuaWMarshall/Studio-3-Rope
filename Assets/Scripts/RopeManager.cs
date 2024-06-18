@@ -5,6 +5,7 @@ using UnityEngine;
 using Random = UnityEngine.Random;
 
 
+
 [Serializable]
 public class RopeState
 {
@@ -63,6 +64,7 @@ public class RopeManager : MonoBehaviour
         nodeVis.Add(visual);
         line.positionCount = nodes.Count;
         return nodes.Count - 1;
+        
     }
 
     private void Start()
