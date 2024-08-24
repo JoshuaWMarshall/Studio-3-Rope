@@ -9,23 +9,32 @@ using Random = UnityEngine.Random;
 [Serializable]
 public class RopeState
 {
+    // The current position of the rope.
     public Vector2 position;
+    
+    // The previous position of the rope.
     public Vector2 previousPosition;
-
+    
+    // Initializes a new instance of the RopeState class with the given position.
+    /// <param name="position">The initial position of the rope.</param>
     public RopeState(Vector2 position)
     {
         this.position = position;
         this.previousPosition = position;
     }
-
-    public void AddForce(Vector2 force)
+    
+    // Adds a force to the current position of the rope with a configurable damping factor.
+    /// <param name="force">The force to be added.</param>
+    /// <param name="dampingFactor">The damping factor to be applied.</param>
+    public void AddForce(Vector2 force, float dampingFactor)
     {
         Vector2 acceleration = force; // Assuming mass is 1 for simplicity
-        Vector2 newPosition = position + (position - previousPosition)*0.99f + acceleration * Time.fixedDeltaTime * Time.fixedDeltaTime;
+        Vector2 newPosition = position + (position - previousPosition) * dampingFactor + acceleration * Time.fixedDeltaTime * Time.fixedDeltaTime;
         previousPosition = position;
         position = newPosition;
     }
-
+    
+    // Integrates the current position of the rope.
     public void Integrate()
     {
         Vector2 newPosition = position + (position - previousPosition);
@@ -54,6 +63,7 @@ public class RopeManager : MonoBehaviour
     public GameObject nodeSomehting;
     public List<GameObject> nodeVis = new List<GameObject>();
     private LineRenderer line;
+    private Node selectedNode = null;
     public int AddNode(Vector2 position, float mass, bool isFixed)
     {
         Node newNode = new Node(position, mass, isFixed);
@@ -99,6 +109,43 @@ public class RopeManager : MonoBehaviour
             }
         }
     }
+    void Update()
+    {
+        HandleMouseInput();
+    }
+
+    void HandleMouseInput()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            Vector2 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            selectedNode = GetNodeAtPosition(mousePosition);
+        }
+
+        if (Input.GetMouseButtonUp(0))
+        {
+            selectedNode = null;
+        }
+
+        if (selectedNode != null)
+        {
+            Vector2 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            selectedNode.state.position = mousePosition;
+            selectedNode.state.previousPosition = mousePosition; // To avoid snapping back
+        }
+    }
+
+    Node GetNodeAtPosition(Vector2 position)
+    {
+        foreach (var node in nodes)
+        {
+            if (Vector2.Distance(node.state.position, position) < 0.5f) // Adjust the threshold as needed
+            {
+                return node;
+            }
+        }
+        return null;
+    }
 
     public void AddConstraint(int node1, int node2, float desiredDistance, float compensate1 = 0.5f, float compensate2 = 0.5f)
     {
@@ -117,10 +164,14 @@ public class RopeManager : MonoBehaviour
         // Apply gravity and integrate nodes
         foreach (var node in nodes)
         {
+            if (node == selectedNode)
+            {
+                continue; // Skip the selected node
+            }
+
             if (!node.isFixed)
             {
-                // Apply gravity
-                node.state.AddForce(Vector2.down * 9.81f * node.mass);
+                node.state.AddForce(Vector2.down * 9.81f * node.mass, 0.99f);
             }
             else
             {
@@ -137,7 +188,7 @@ public class RopeManager : MonoBehaviour
                 node.state.position.y = -3.5f;
             }
         }
-        
+    
         // Satisfy constraints
         for (int i = 0; i < 20; i++)
         {
@@ -145,11 +196,12 @@ public class RopeManager : MonoBehaviour
             {
                 var node1 = nodes[constraint.node1];
                 var node2 = nodes[constraint.node2];
-                ConstraintFixedDist(ref node1.state.position, ref node2.state.position, constraint.desiredDistance, constraint.compensate1, constraint.compensate2);
+                ConstraintLengthMinDist(ref node1.state.position, ref node2.state.position, constraint.compensate1, constraint.compensate2, constraint.desiredDistance *0.9f);
+                ConstraintMaxDist(ref node1.state.position, ref node2.state.position, constraint.compensate1, constraint.compensate2, constraint.desiredDistance * 1.1f);
+              //  ConstraintFixedDist(ref node1.state.position, ref node2.state.position, constraint.desiredDistance, constraint.compensate1, constraint.compensate2);
             }
         }
 
-     
         UpdateVisuals();
     }
 
@@ -162,16 +214,31 @@ public class RopeManager : MonoBehaviour
             line.SetPosition(i,node.state.position);
         }
     }
-    private void ConstraintFixedDist(ref Vector2 pos1, ref Vector2 pos2, float desiredDistance, float compensate1,
-        float compensate2)
+    private void ConstraintLengthMinDist(ref Vector2 pos1, ref Vector2 pos2, float compensate1,
+        float compensate2, float minDistance)
     {
         Vector2 delta = pos2 - pos1;
         float currentDistance = delta.magnitude;
-        float difference = (currentDistance - desiredDistance) / currentDistance;
-        Vector2 correction = delta * difference;
-
-        pos1 += correction * compensate1;
-        pos2 -= correction * compensate2;
+        if (currentDistance > 0 && currentDistance < minDistance)
+        {
+            float difference = (currentDistance - minDistance) / currentDistance;
+            Vector2 correction = delta * difference;
+            pos1 += correction * compensate1;
+            pos2 -= correction * compensate2;
+        }
+    }
+    private void ConstraintMaxDist(ref Vector2 pos1, ref Vector2 pos2, float compensate1,
+        float compensate2, float maxDistance)
+    {
+        Vector2 delta = pos2 - pos1;
+        float currentDistance = delta.magnitude;
+        if (currentDistance > maxDistance)
+        {
+            float difference = (currentDistance - maxDistance) / currentDistance;
+            Vector2 correction = delta * difference;
+            pos1 += correction * compensate1;
+            pos2 -= correction * compensate2;
+        }
     }
 }
 
