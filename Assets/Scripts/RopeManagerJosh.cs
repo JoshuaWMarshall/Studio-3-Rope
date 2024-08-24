@@ -3,86 +3,140 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-
-public class RopeManagerJosh : MonoBehaviour
+public class JoshNode
 {
-   
-    
-
-    // Node is a class like : (add public and stuff, I'm lazy)
     public Vector2 position;
     public Vector2 previousPosition;
-    private List<Node> nodes = new List<Node>();
-    private List<Constraint> constraints = new List<Constraint>();
-    class Node
+    public float mass;
+    public bool isFixed;
+
+    public JoshNode(Vector2 position, float mass, bool isFixed)
     {
-        this.n = new RopeState(position);
-        public float mass; // if you wanted to have mass
-        public bool isFixed; // bool fixed; // if true, don't do integration, it's position is locked.
+        this.position = position;
+        this.previousPosition = position; // Initialize previousPosition to current position
+        this.mass = mass;
+        this.isFixed = isFixed;
+    }
+
+    public void AddForce(Vector2 force)
+    {
+        Vector2 acceleration = force / mass; // F = ma, so a = F/m
+        Vector2 newPosition = position + (position - previousPosition) + acceleration * Time.fixedDeltaTime * Time.fixedDeltaTime;
+        previousPosition = position;
+        position = newPosition;
     }
 
     public void Integrate()
     {
         Vector2 newPosition = position + (position - previousPosition);
         previousPosition = position;
-        position = newPosition; 
+        position = newPosition;
     }
+}
 
-    class Constraint
+
+public class RopeManagerJosh : MonoBehaviour
+{
+    public List<JoshNode> nodes = new List<JoshNode>();
+    public float segmentLength;
+    public int segmentCount;
+    private LineRenderer line;
+
+    void Start()
     {
-        int node1;
-        int node2;
-        float compensate1;
-        float compensate2;
-        float desiredDistance;
+        // Initialize the segments
+        for (int i = 0; i < segmentCount; i++)
+        {
+          //  bool isFixed = (i == 0 || i == segmentCount - 1); // Fix the first and last nodes
+          if (i == 0 || i == segmentCount - 1)
+          {
+              nodes.Add(new JoshNode(new Vector2(i * segmentLength, 0), 1, true));
+          }
+          else
+          {
+              nodes.Add(new JoshNode(new Vector2(i * segmentLength, 0), 1, false));
+          }
+            
+        }
+
+        // Initialize the LineRenderer
+        line = gameObject.GetComponent<LineRenderer>();
+        line.positionCount = nodes.Count;
+        line.startWidth = 0.1f;
+        line.endWidth = 0.1f;
+        line.material = new Material(Shader.Find("Sprites/Default"));
     }
 
-    
-
-    public int AddNode(Vector2 position, float mass, bool isFixed)
+    void FixedUpdate()
     {
-        Node newNode = new Node(position, mass, isFixed);
-        nodes.Add(newNode);
-        return nodes.Count - 1;
+        Simulate(Time.fixedDeltaTime);
     }
 
-    public void AddConstraint(int node1, int node2, float desiredDistance, float compensate1 = 0.5f, float compensate2 = 0.5f)
+    public void Simulate(float deltaTime)
     {
-        // addConstraint(corner1, corner2,1.0f);
-        // addConstraint(corner2, corner3,1.0f);
-        // addConstraint(corner3, corner4,1.0f);
-        // addConstraint(corner4, corner1,1.0f);
+        // Apply gravity and integrate nodes
+        foreach (var node in nodes)
+        {
+            if (!node.isFixed)
+            {
+                // Apply gravity
+                node.AddForce(Vector2.down * 9.81f * node.mass);
+            }
+            else
+            {
+                node.position = node.previousPosition;
+            }
+            node.Integrate();
+        }
+
+        // Apply ground check
+        foreach (var node in nodes)
+        {
+            if (node.position.y < -3.5f)
+            {
+                node.position.y = -3.5f;
+            }
+        }
+
+        // Apply constraints to keep segments at a fixed distance
+        for (int i = 0; i < segmentCount; i++)  // Iterating multiple times for stability
+        {
+            ApplyConstraints();
+        }
+
+        // Update visuals after simulation
+        UpdateVisuals();
     }
 
-
-
-   
-
-    // Also handy would be an addConstraint that doesn't take a distance, it calculates it manually by getting the distance between the two nodes (makes diagonals easier).
-    private void FixedUpdate() 
+    private void UpdateVisuals()
     {
-    
-	 // Loop over nodes
-
-     // Add gravity to each(with addForce)
-
-     // Integrate each node
-
-     // Loop 10 times(or more / less)
-
-     // Loop over constraints
-
-     // Do fixed distance constraint between the constraint's node1 and node2
-
-     // Like: constraintfixeddist(ref nodeList[constraint.node1].state.pos, ref nodeList[constraint.node2].state.pos, constraint.desiredDistance, constraint.compensate1, constraint.compensate2);
-     // Loop over nodes
-     // Apply ground check, move nodes to ground if they go below.
-     // Loop over nodes
-     // Copy node positions into game objects if you have visuals.
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            line.SetPosition(i, nodes[i].position);
+        }
     }
-    
 
-    // Depending on how you want it to look, you could put a gameobject in the Node class (so it is like we did today, sprites or meshes on the nodes), or in the Constraint class (for things like pipes). If they are on the constraints, you move the gameobject to the mid point between the two nodes it uses, and rotate it to match the vector between them.Maybe scale it too to match the distance.
+    private void ApplyConstraints()
+    {
+        // Apply distance constraints between nodes
+        for (int i = 0; i < nodes.Count - 1; i++)
+        {
+            JoshNode nodeA = nodes[i];
+            JoshNode nodeB = nodes[i + 1];
 
+            Vector2 delta = nodeA.position - nodeB.position;
+            float distance = delta.magnitude;
+            float error = distance - segmentLength;
+            Vector2 correction = delta * error;
 
+            if (!nodeA.isFixed)
+            {
+                nodeA.position -= correction;
+            }
+            if (!nodeB.isFixed)
+            {
+                nodeB.position += correction;
+            }
+        }
+    }
 }
